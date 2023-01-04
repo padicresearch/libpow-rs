@@ -5,9 +5,9 @@ use crate::bindings::{
 };
 use crate::error::Error;
 use crate::flag::RandomxFlags;
+use parking_lot::Mutex;
 use std::ffi::c_ulong;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 pub struct RandomxDataset<'a> {
     pub(crate) dataset: &'a mut randomx_dataset,

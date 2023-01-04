@@ -42,10 +42,11 @@ impl<'a> RandomX<'a> {
         Ok(Self { vm })
     }
 
-    pub fn new_fast(flags: RandomxFlags, dataset: &mut  RandomxDataset<'a>) -> Result<Self, Error> {
+    pub fn new_fast(flags: RandomxFlags, dataset: &mut RandomxDataset<'a>) -> Result<Self, Error> {
         let vm = unsafe {
             let flags = flags.bits();
-            let vm = bindings::randomx_create_vm(flags, std::ptr::null_mut(), dataset.dataset).as_mut();
+            let vm =
+                bindings::randomx_create_vm(flags, std::ptr::null_mut(), dataset.dataset).as_mut();
             vm
         };
         let Some(vm) = vm else {
@@ -53,7 +54,6 @@ impl<'a> RandomX<'a> {
         };
         Ok(Self { vm })
     }
-
 
     pub fn calculate_hash<I: AsRef<[u8]>>(
         &mut self,
