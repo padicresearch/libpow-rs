@@ -9,6 +9,9 @@ edition = "2021"
 bitflags = "2.0.0-rc.1"
 num_cpus = "1.15.0"
 thiserror = "1.0.38"
+parking_lot = "0.12.1"
+[dev-dependencies]
+hex = "0.4.3"
 [build-dependencies]
 bindgen = "0.63.0"
 cmake = "0.1.49"
