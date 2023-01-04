@@ -67,10 +67,16 @@ impl<'a> RandomX<'a> {
         Ok(())
     }
 
-    pub fn calculate_hash_to_vec<I: AsRef<[u8]>>(&mut self, input: I) -> Vec<u8> {
+    pub fn calculate_hash_into_vec<I: AsRef<[u8]>>(&mut self, input: I) -> Vec<u8> {
         let mut out = [0_u8; RANDOMX_HASH_SIZE];
         self._calculate_hash(input, &mut out);
         out.into()
+    }
+
+    pub fn calculate_hash_into_slice<I: AsRef<[u8]>>(&mut self, input: I) -> [u8; RANDOMX_HASH_SIZE] {
+        let mut out = [0_u8; RANDOMX_HASH_SIZE];
+        self._calculate_hash(input, &mut out);
+        out
     }
 
     fn _calculate_hash<I: AsRef<[u8]>>(&mut self, input: I, out: &mut [u8]) {
