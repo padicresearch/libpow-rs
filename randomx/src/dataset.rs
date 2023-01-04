@@ -1,19 +1,23 @@
 use crate::bindings::{
     randomx_alloc_cache, randomx_alloc_dataset, randomx_cache, randomx_dataset,
-    randomx_dataset_item_count, randomx_init_cache, randomx_init_dataset, randomx_release_cache,
-    randomx_release_dataset,
+    randomx_dataset_item_count, randomx_get_dataset_memory, randomx_init_cache,
+    randomx_init_dataset, randomx_release_cache, randomx_release_dataset,
+    RANDOMX_DATASET_ITEM_SIZE,
 };
 use crate::error::Error;
 use crate::flag::RandomxFlags;
+use memmap2::Mmap;
 use parking_lot::Mutex;
-use std::ffi::c_ulong;
+use std::ffi::{c_ulong, c_void};
+use std::fs::OpenOptions;
+use std::path::Path;
 use std::sync::Arc;
 
-pub struct RandomxDataset<'a> {
-    pub(crate) dataset: &'a mut randomx_dataset,
+pub struct RandomxDataset {
+    pub(crate) dataset: *mut randomx_dataset,
 }
 
-impl<'a> RandomxDataset<'a> {
+impl RandomxDataset {
     pub fn new(flags: RandomxFlags, key: &[u8]) -> Result<Self, Error> {
         unsafe {
             let cache = RandomxCache::new(flags, key)?;
@@ -66,23 +70,52 @@ impl<'a> RandomxDataset<'a> {
             Ok(dataset)
         }
     }
+
+    pub fn as_slice(&mut self) -> &[u8] {
+        unsafe {
+            let ptr = randomx_get_dataset_memory(self.dataset) as *const u8;
+            let out = std::slice::from_raw_parts(
+                ptr,
+                (randomx_dataset_item_count() as usize * RANDOMX_DATASET_ITEM_SIZE as usize)
+                    as usize,
+            );
+            out
+        }
+    }
+
+    pub fn from_file<P: AsRef<Path>>(flags: RandomxFlags, path: P) -> Result<Self, Error> {
+        unsafe {
+            let file = OpenOptions::new().read(true).open(path)?;
+            let mmap_file = Mmap::map(&file)?;
+            let dataset = randomx_alloc_dataset(flags.bits());
+            libc::memcpy(
+                randomx_get_dataset_memory(ptr),
+                mmap_file.as_ptr() as *const _,
+                randomx_dataset_item_count() as usize * RANDOMX_DATASET_ITEM_SIZE as usize,
+            );
+            if dataset.is_null() {
+                return Err(Error::DatasetAllocError);
+            }
+            Ok(Self { dataset })
+        }
+    }
 }
 
-unsafe impl<'a> Send for RandomxDataset<'a> {}
+unsafe impl Send for RandomxDataset {}
 
-unsafe impl<'a> Sync for RandomxDataset<'a> {}
+unsafe impl Sync for RandomxDataset {}
 
-impl<'a> Drop for RandomxDataset<'a> {
+impl Drop for RandomxDataset {
     fn drop(&mut self) {
         unsafe { randomx_release_dataset(self.dataset) }
     }
 }
 
-pub struct RandomxCache<'a> {
-    pub(crate) cache: &'a mut randomx_cache,
+pub struct RandomxCache {
+    pub(crate) cache: *mut randomx_cache,
 }
 
-impl<'a> RandomxCache<'a> {
+impl RandomxCache {
     pub fn new(flags: RandomxFlags, key: &[u8]) -> Result<Self, Error> {
         let cache = unsafe {
             randomx_alloc_cache(flags.bits())
@@ -91,19 +124,19 @@ impl<'a> RandomxCache<'a> {
         };
 
         unsafe {
-            randomx_init_cache(cache, key.as_ptr() as *const std::ffi::c_void, key.len());
+            randomx_init_cache(cache, key.as_ptr() as *const c_void, key.len());
         }
 
         Ok(RandomxCache { cache })
     }
 }
 
-impl<'a> Drop for RandomxCache<'a> {
+impl Drop for RandomxCache {
     fn drop(&mut self) {
         unsafe { randomx_release_cache(self.cache) }
     }
 }
 
-unsafe impl<'a> Send for RandomxCache<'a> {}
+unsafe impl Send for RandomxCache {}
 
-unsafe impl<'a> Sync for RandomxCache<'a> {}
+unsafe impl Sync for RandomxCache {}

@@ -10,6 +10,8 @@ bitflags = "2.0.0-rc.1"
 num_cpus = "1.15.0"
 thiserror = "1.0.38"
 parking_lot = "0.12.1"
+memmap2 = "0.5.8"
+libc = "0.2.139"
 [dev-dependencies]
 hex = "0.4.3"
 [build-dependencies]

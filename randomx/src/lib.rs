@@ -17,7 +17,8 @@ pub struct RandomX<'a> {
 }
 
 impl<'a> RandomX<'a> {
-    pub fn new(flags: RandomxFlags, cache: &mut RandomxCache<'a>) -> Result<Self, Error> {
+    pub fn new_light(mut flags: RandomxFlags, cache: &RandomxCache) -> Result<Self, Error> {
+        flags.set(RandomxFlags::FULLMEM, false);
         let vm = unsafe {
             let flags = flags.bits();
             let vm = bindings::randomx_create_vm(flags, cache.cache, std::ptr::null_mut()).as_mut();
@@ -29,20 +30,8 @@ impl<'a> RandomX<'a> {
         Ok(Self { vm })
     }
 
-    pub fn new_with_key(flags: RandomxFlags, key: &[u8]) -> Result<Self, Error> {
-        let cache = RandomxCache::new(flags, key)?;
-        let vm = unsafe {
-            let flags = flags.bits();
-            let vm = bindings::randomx_create_vm(flags, cache.cache, std::ptr::null_mut()).as_mut();
-            vm
-        };
-        let Some(vm) = vm else {
-            return Err(Error::FailedToInitializeVM);
-        };
-        Ok(Self { vm })
-    }
-
-    pub fn new_fast(flags: RandomxFlags, dataset: &mut RandomxDataset<'a>) -> Result<Self, Error> {
+    pub fn new_fast(mut flags: RandomxFlags, dataset: &RandomxDataset) -> Result<Self, Error> {
+        flags.set(RandomxFlags::FULLMEM, true);
         let vm = unsafe {
             let flags = flags.bits();
             let vm =
@@ -73,7 +62,10 @@ impl<'a> RandomX<'a> {
         out.into()
     }
 
-    pub fn calculate_hash_into_slice<I: AsRef<[u8]>>(&mut self, input: I) -> [u8; RANDOMX_HASH_SIZE] {
+    pub fn calculate_hash_into_slice<I: AsRef<[u8]>>(
+        &mut self,
+        input: I,
+    ) -> [u8; RANDOMX_HASH_SIZE] {
         let mut out = [0_u8; RANDOMX_HASH_SIZE];
         self._calculate_hash(input, &mut out);
         out
@@ -112,7 +104,7 @@ mod tests {
 
         let mut cache = RandomxCache::new(flags, key).unwrap();
 
-        let mut rx = RandomX::new(flags, &mut cache).unwrap();
+        let mut rx = RandomX::light(flags, &mut cache).unwrap();
         rx.calculate_hash(input, &mut out).unwrap();
         let expected = [
             138, 72, 229, 249, 219, 69, 171, 121, 217, 8, 5, 116, 196, 216, 25, 84, 254, 106, 198,
@@ -129,8 +121,7 @@ mod tests {
         let mut out = [0_u8; RANDOMX_HASH_SIZE];
 
         let mut dataset = RandomxDataset::new(flags, key).unwrap();
-
-        let mut rx = RandomX::new_fast(flags, &mut dataset).unwrap();
+        let mut rx = RandomX::fast(flags, &mut dataset).unwrap();
         rx.calculate_hash(input, &mut out).unwrap();
         let expected = [
             138, 72, 229, 249, 219, 69, 171, 121, 217, 8, 5, 116, 196, 216, 25, 84, 254, 106, 198,
